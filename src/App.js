@@ -46,16 +46,21 @@ const mockFetch = (url, options = {}) => {
 const safeFetch = (url, options) => (MOCK_MODE ? mockFetch(url, options) : fetch(url, options));
 
 export default function App() {
-  const [category, setCategory] = useState("lost_found");
+  const [requests, setRequests] = useState([]);
   const [description, setDescription] = useState("");
   const [location, setLocation] = useState("");
-  const [requests, setRequests] = useState([]);
+  const [category, setCategory] = useState("lost_found");
+  const [expiry, setExpiry] = useState("24");
+  const [editingId, setEditingId] = useState(null);
+  const [search, setSearch] = useState("");
   const [backendOnline, setBackendOnline] = useState(null);
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     checkBackendStatus();
     fetchRequests();
+    const interval = setInterval(checkBackendStatus, 60000);
+    return () => clearInterval(interval);
   }, []);
 
   const checkBackendStatus = async () => {
@@ -84,16 +89,42 @@ export default function App() {
   };
 
   const handleSubmit = async () => {
-    const body = { category, description, location, expiry: "24" };
+    const body = { category, description, location, expiry };
+    const method = editingId ? "PUT" : "POST";
+    const url = editingId
+      ? `http://localhost:4000/requests/${editingId}`
+      : "http://localhost:4000/requests";
+
     setLoading(true);
-    await safeFetch("http://localhost:4000/requests", {
-      method: "POST",
+    await safeFetch(url, {
+      method,
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(body),
     });
     await fetchRequests();
     setDescription("");
     setLocation("");
+    setCategory("lost_found");
+    setExpiry("24");
+    setEditingId(null);
+    setLoading(false);
+  };
+
+  const handleDelete = async (id) => {
+    if (!window.confirm("Delete this request?")) return;
+    setLoading(true);
+    await safeFetch(`http://localhost:4000/requests/${id}`, { method: "DELETE" });
+    await fetchRequests();
+    setLoading(false);
+  };
+
+  const handleEdit = (req) => {
+    setCategory(req.category);
+    setDescription(req.description);
+    setLocation(req.location);
+    setExpiry("24");
+    setEditingId(req.id);
+    window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
   const handleMatch = async (id) => {
@@ -104,44 +135,28 @@ export default function App() {
       body: JSON.stringify({ requestId: id }),
     });
     const data = await res.json();
-    alert("Matches found:\n" + data.matches.map((m) => `• ${m.description} @ ${m.location}`).join("\n"));
+    alert(
+      "Matches found:\n" +
+        data.matches.map((m) => `• ${m.description} @ ${m.location}`).join("\n")
+    );
     setLoading(false);
   };
 
+  const filtered = requests
+    .filter(
+      (r) =>
+        r.description.toLowerCase().includes(search.toLowerCase()) ||
+        r.location.toLowerCase().includes(search.toLowerCase()) ||
+        r.category.toLowerCase().includes(search.toLowerCase())
+    )
+    .sort((a, b) => new Date(a.expiryDate) - new Date(b.expiryDate));
+
   return (
-    <div style={{ maxWidth: 600, margin: "auto", fontFamily: "sans-serif" }}>
+    <div style={{ padding: "2rem", fontFamily: "sans-serif", maxWidth: 600, margin: "auto" }}>
       <h1>Mutual Match (Mock Mode)</h1>
       <p style={{ color: backendOnline ? "green" : "red" }}>
-        Backend Status: {backendOnline === null ? "Checking..." : backendOnline ? "Online" : "Offline"}
+        Backend: {backendOnline === null ? "Checking..." : backendOnline ? "Online" : "Offline"}
       </p>
 
-      <div style={{ marginBottom: "1rem" }}>
-        <select value={category} onChange={(e) => setCategory(e.target.value)} style={{ width: "100%", marginBottom: 8 }}>
-          <option value="lost_found">Lost & Found</option>
-          <option value="missed_connections">Missed Connections</option>
-          <option value="restaurant">Restaurant Openings</option>
-          <option value="tickets">Tickets & Events</option>
-          <option value="rideshare">Rideshare</option>
-        </select>
-        <input placeholder="Description" value={description} onChange={(e) => setDescription(e.target.value)} style={{ width: "100%", marginBottom: 8 }} />
-        <input placeholder="Location" value={location} onChange={(e) => setLocation(e.target.value)} style={{ width: "100%", marginBottom: 8 }} />
-        <button onClick={handleSubmit} disabled={loading || !backendOnline}>Submit Request</button>
-      </div>
-
-      <h2>Requests</h2>
-      {loading ? (
-        <p>Loading...</p>
-      ) : (
-        requests.map((r) => (
-          <div key={r.id} style={{ borderBottom: "1px solid #ccc", padding: "8px 0" }}>
-            <strong>{r.description}</strong> @ {r.location}
-            <br />
-            Expires: {new Date(r.expiryDate).toLocaleString()}
-            <br />
-            <button onClick={() => handleMatch(r.id)}>Find Matches</button>
-          </div>
-        ))
-      )}
-    </div>
-  );
-}
+      <select value={category} onChange={(e) => setCategory(e.target.value)} style={{ width: "100%", marginBottom: 8 }}>
+        <option value="lost_found">Lost_
