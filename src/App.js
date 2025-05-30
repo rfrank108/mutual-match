@@ -1,6 +1,4 @@
-import React, { useState, useEffect } from "react";
-
-// MOCK MODE FOR TESTING
+// MOCK MODE FOR TESTING: set to true to simulate fetch requests
 const MOCK_MODE = true;
 
 const mockFetch = (url, options = {}) => {
@@ -44,6 +42,8 @@ const mockFetch = (url, options = {}) => {
 };
 
 const safeFetch = (url, options) => (MOCK_MODE ? mockFetch(url, options) : fetch(url, options));
+
+import React, { useState, useEffect } from "react";
 
 export default function App() {
   const [requests, setRequests] = useState([]);
@@ -159,4 +159,58 @@ export default function App() {
       </p>
 
       <select value={category} onChange={(e) => setCategory(e.target.value)} style={{ width: "100%", marginBottom: 8 }}>
-        <option value="lost_found">Lost_
+        <option value="lost_found">Lost & Found</option>
+        <option value="missed_connections">Missed Connections</option>
+        <option value="restaurant">Restaurant Openings</option>
+        <option value="tickets">Tickets & Events</option>
+        <option value="rideshare">Rideshare</option>
+      </select>
+      <input
+        placeholder="Location"
+        value={location}
+        onChange={(e) => setLocation(e.target.value)}
+        style={{ width: "100%", marginBottom: 8 }}
+      />
+      <textarea
+        placeholder="Description"
+        value={description}
+        onChange={(e) => setDescription(e.target.value)}
+        style={{ width: "100%", marginBottom: 8 }}
+      />
+      <select value={expiry} onChange={(e) => setExpiry(e.target.value)} style={{ width: "100%", marginBottom: 8 }}>
+        <option value="1">1 hour</option>
+        <option value="6">6 hours</option>
+        <option value="24">24 hours</option>
+        <option value="72">3 days</option>
+        <option value="168">1 week</option>
+      </select>
+      <button onClick={handleSubmit} disabled={loading || !backendOnline} style={{ width: "100%", marginBottom: 16 }}>
+        {editingId ? "Update" : "Submit"} Request
+      </button>
+
+      <input
+        placeholder="Filter requests..."
+        value={search}
+        onChange={(e) => setSearch(e.target.value)}
+        style={{ width: "100%", marginBottom: 16 }}
+      />
+
+      {loading ? (
+        <p>Loading...</p>
+      ) : (
+        filtered.map((req) => (
+          <div key={req.id} style={{ borderBottom: "1px solid #ccc", padding: "8px 0" }}>
+            <strong>{req.category.replace(/_/g, " ")}:</strong> {req.description} @ {req.location}
+            <br />
+            Expires: {new Date(req.expiryDate).toLocaleString()}
+            <br />
+            <button onClick={() => handleEdit(req)}>Edit</button>{" "}
+            <button onClick={() => handleDelete(req.id)}>Delete</button>{" "}
+            <button onClick={() => handleMatch(req.id)}>Find Matches</button>
+          </div>
+        ))
+      )}
+    </div>
+  );
+}
+
